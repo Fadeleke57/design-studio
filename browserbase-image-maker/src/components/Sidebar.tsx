@@ -14,8 +14,6 @@ interface Props {
   pixelSize: number;
   setPixelSize: (n: number) => void;
   pixelSizes: number[];
-  canvasHeight: number;
-  setCanvasHeight: (n: number) => void;
   activeTab: TabName;
   setActiveTab: (t: TabName) => void;
   drawingColor: string;
@@ -67,7 +65,6 @@ const labelStyle: React.CSSProperties = {
 export function Sidebar(props: Props) {
   const {
     pixelSize, setPixelSize, pixelSizes,
-    canvasHeight, setCanvasHeight,
     activeTab, setActiveTab,
   } = props;
 
@@ -95,18 +92,6 @@ export function Sidebar(props: Props) {
           </button>
         ))}
       </div>
-
-      {/* Canvas Height */}
-      <label style={labelStyle}>Canvas Height: {canvasHeight}px</label>
-      <input
-        type="range"
-        min={200}
-        max={1600}
-        step={10}
-        value={canvasHeight}
-        onChange={(e) => setCanvasHeight(Number(e.target.value))}
-        style={{ marginBottom: 16, width: "100%" }}
-      />
 
       {/* Tab Bar */}
       <div
@@ -175,6 +160,8 @@ export function Sidebar(props: Props) {
           setEnabledColors={props.setEnabledColors}
           grid={props.grid}
           setGrid={props.setGrid}
+          drawingColor={props.drawingColor}
+          setDrawingColor={props.setDrawingColor}
         />
       )}
       {activeTab === "image" && (
@@ -185,7 +172,7 @@ export function Sidebar(props: Props) {
           cols={props.cols}
           pixelSize={props.pixelSize}
           canvasWidth={props.canvasWidth}
-          canvasHeight={canvasHeight}
+          canvasHeight={props.canvasWidth}
           shapeMode={props.shapeMode}
           showGrid={props.showGrid}
           imageContrast={props.imageContrast}

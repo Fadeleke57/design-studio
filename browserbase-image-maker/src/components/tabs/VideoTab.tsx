@@ -1,5 +1,7 @@
 "use client";
 
+import { Circle, Download } from "lucide-react";
+
 export function VideoTab() {
   return (
     <div>
@@ -19,10 +21,13 @@ export function VideoTab() {
             background: "white",
             color: "var(--text-muted)",
             cursor: "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
           }}
           disabled
         >
-          🔴 Start Recording (Coming Soon)
+          <Circle size={14} color="#ef4444" fill="#ef4444" /> Start Recording (Coming Soon)
         </button>
         <button
           style={{
@@ -33,10 +38,13 @@ export function VideoTab() {
             background: "white",
             color: "var(--text-muted)",
             cursor: "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
           }}
           disabled
         >
-          ⬇ Export as GIF (Coming Soon)
+          <Download size={14} /> Export as GIF (Coming Soon)
         </button>
       </div>
     </div>

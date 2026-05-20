@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil, Eraser } from "lucide-react";
 import type { BrushType } from "../ImageMaker";
 import type { ShapeMode } from "@/lib/shapes";
 
@@ -109,11 +110,11 @@ export function ToolsTab({
       {/* Brush Type */}
       <label style={sectionLabel}>Brush Type</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        <button onClick={() => setBrushType("draw")} style={btnStyle(brushType === "draw")}>
-          ✏️ Draw
+        <button onClick={() => setBrushType("draw")} style={{ ...btnStyle(brushType === "draw"), display: "flex", alignItems: "center", gap: 4 }}>
+          <Pencil size={14} /> Draw
         </button>
-        <button onClick={() => setBrushType("eraser")} style={btnStyle(brushType === "eraser")}>
-          🧹 Eraser
+        <button onClick={() => setBrushType("eraser")} style={{ ...btnStyle(brushType === "eraser"), display: "flex", alignItems: "center", gap: 4 }}>
+          <Eraser size={14} /> Eraser
         </button>
       </div>
 

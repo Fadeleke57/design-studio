@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback } from "react";
+import { Save, FolderOpen, Download, Image as ImageIcon } from "lucide-react";
 import type { PixelCell } from "../ImageMaker";
 import type { ShapeMode } from "@/lib/shapes";
 import { randomShape } from "@/lib/shapes";
@@ -187,22 +188,22 @@ export function ImageTab({
       {/* Quick Save */}
       <label style={sectionLabel}>Quick Save</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        <button onClick={handleSave} style={{ ...btnStyle, flex: 1 }}>
-          💾 Save
+        <button onClick={handleSave} style={{ ...btnStyle, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <Save size={14} /> Save
         </button>
-        <button onClick={handleLoad} style={{ ...btnStyle, flex: 1 }}>
-          📂 Load
+        <button onClick={handleLoad} style={{ ...btnStyle, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <FolderOpen size={14} /> Load
         </button>
       </div>
 
       {/* Import */}
       <label style={sectionLabel}>Import</label>
       <div style={{ display: "flex", gap: 6, marginBottom: 16 }}>
-        <button onClick={() => svgFileRef.current?.click()} style={{ ...btnStyle, flex: 1 }}>
-          ⬇ SVG
+        <button onClick={() => svgFileRef.current?.click()} style={{ ...btnStyle, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <Download size={14} /> SVG
         </button>
-        <button onClick={() => imageFileRef.current?.click()} style={{ ...btnStyle, flex: 1 }}>
-          🖼 Image
+        <button onClick={() => imageFileRef.current?.click()} style={{ ...btnStyle, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <ImageIcon size={14} /> Image
         </button>
         <input
           ref={svgFileRef}
@@ -281,7 +282,7 @@ export function ImageTab({
           marginBottom: 8,
         }}
       >
-        ⬇ Download as SVG
+        <Download size={16} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} /> Download as SVG
       </button>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {[2, 4, 8, 10].map((s) => (

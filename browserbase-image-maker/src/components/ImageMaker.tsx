@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { PixelCanvas } from "./PixelCanvas";
 import { Sidebar } from "./Sidebar";
 import { randomShape, setSeed, type ShapeMode, type ShapeType } from "@/lib/shapes";
+import { hexToRgb, rgbToHex } from "@/lib/colorUtils";
 
 export interface PixelCell {
   row: number;
@@ -18,16 +19,72 @@ export type PaletteType = "full-color" | "greyscale";
 export type ColorMode = "full" | "one" | "two" | "three" | "custom";
 export type TabName = "tools" | "patterns" | "color" | "image" | "video";
 
-function buildGrid(rows: number, cols: number, shapeMode: ShapeMode, oldGrid?: PixelCell[][]): PixelCell[][] {
-  setSeed(42); // deterministic seed so SSR matches client
-  return Array.from({ length: rows }, (_, row) =>
-    Array.from({ length: cols }, (_, col) => {
-      if (oldGrid && oldGrid[row]?.[col]) {
-        return { ...oldGrid[row][col], row, col };
+// Resample old grid into new dimensions by finding the dominant color
+// in each new cell's covered area of the old grid
+function resampleGrid(
+  newRows: number,
+  newCols: number,
+  oldGrid: PixelCell[][],
+  oldPixelSize: number,
+  newPixelSize: number,
+  shapeMode: ShapeMode
+): PixelCell[][] {
+  const oldRows = oldGrid.length;
+  const oldCols = oldGrid[0]?.length ?? 0;
+  if (oldRows === 0 || oldCols === 0) return buildEmptyGrid(newRows, newCols, shapeMode);
+
+  setSeed(42);
+  return Array.from({ length: newRows }, (_, row) =>
+    Array.from({ length: newCols }, (_, col) => {
+      // Find which old cells this new cell covers
+      const newX0 = col * newPixelSize;
+      const newY0 = row * newPixelSize;
+      const newX1 = newX0 + newPixelSize;
+      const newY1 = newY0 + newPixelSize;
+
+      const oldColStart = Math.floor(newX0 / oldPixelSize);
+      const oldColEnd = Math.min(Math.ceil(newX1 / oldPixelSize), oldCols);
+      const oldRowStart = Math.floor(newY0 / oldPixelSize);
+      const oldRowEnd = Math.min(Math.ceil(newY1 / oldPixelSize), oldRows);
+
+      // Count colors in covered area
+      const colorCounts = new Map<string, number>();
+      let filledCount = 0;
+      let totalCount = 0;
+
+      for (let or = oldRowStart; or < oldRowEnd; or++) {
+        for (let oc = oldColStart; oc < oldColEnd; oc++) {
+          if (or >= 0 && or < oldRows && oc >= 0 && oc < oldCols) {
+            totalCount++;
+            const oldCell = oldGrid[or][oc];
+            if (oldCell.filled) {
+              filledCount++;
+              colorCounts.set(oldCell.color, (colorCounts.get(oldCell.color) ?? 0) + 1);
+            }
+          }
+        }
       }
+
+      // If majority of covered area was filled, fill with dominant color
+      if (filledCount > 0 && filledCount >= totalCount * 0.3) {
+        let dominantColor = "#000000";
+        let maxCount = 0;
+        for (const [color, count] of colorCounts) {
+          if (count > maxCount) {
+            maxCount = count;
+            dominantColor = color;
+          }
+        }
+        return {
+          row, col,
+          color: dominantColor,
+          shape: randomShape(shapeMode),
+          filled: true,
+        };
+      }
+
       return {
-        row,
-        col,
+        row, col,
         color: "#000000",
         shape: randomShape(shapeMode),
         filled: false,
@@ -36,13 +93,29 @@ function buildGrid(rows: number, cols: number, shapeMode: ShapeMode, oldGrid?: P
   );
 }
 
+function buildEmptyGrid(rows: number, cols: number, shapeMode: ShapeMode): PixelCell[][] {
+  setSeed(42);
+  return Array.from({ length: rows }, (_, row) =>
+    Array.from({ length: cols }, (_, col) => ({
+      row,
+      col,
+      color: "#000000",
+      shape: randomShape(shapeMode),
+      filled: false,
+    }))
+  );
+}
+
 const PIXEL_SIZES = [2, 3, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 
 export function ImageMaker() {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const [canvasWidth, setCanvasWidth] = useState(800);
+  const [containerWidth, setContainerWidth] = useState(800);
+  const [containerHeight, setContainerHeight] = useState(800);
   const [pixelSize, setPixelSize] = useState(20);
-  const [canvasHeight, setCanvasHeight] = useState(1136);
+  const canvasSize = Math.min(containerWidth, containerHeight);
+  const canvasWidth = canvasSize;
+  const canvasHeight = canvasSize;
   const [activeTab, setActiveTab] = useState<TabName>("tools");
   const [drawingColor, setDrawingColor] = useState("#000000");
   const [colorHistory, setColorHistory] = useState<string[]>(["#000000", "#FFFFFF"]);
@@ -52,21 +125,35 @@ export function ImageMaker() {
   const [showGrid, setShowGrid] = useState(true);
   const [paletteType, setPaletteType] = useState<PaletteType>("full-color");
   const [colorMode, setColorMode] = useState<ColorMode>("full");
-  const [enabledColors, setEnabledColors] = useState<{ color: string; enabled: boolean }[]>([]);
+  const [enabledColors, setEnabledColors] = useState<{ color: string; enabled: boolean }[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("bbim-colors");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [imageContrast, setImageContrast] = useState(0);
   const [imageLightness, setImageLightness] = useState(0);
 
+  useEffect(() => {
+    try { localStorage.setItem("bbim-colors", JSON.stringify(enabledColors)); } catch {}
+  }, [enabledColors]);
+
+  const prevPixelSize = useRef(pixelSize);
   const cols = Math.floor(canvasWidth / pixelSize);
   const rows = Math.floor(canvasHeight / pixelSize);
 
-  const [grid, setGrid] = useState<PixelCell[][]>(() => buildGrid(rows, cols, shapeMode));
+  const [grid, setGrid] = useState<PixelCell[][]>(() => buildEmptyGrid(rows, cols, shapeMode));
 
   // Measure canvas container
   useEffect(() => {
     const measure = () => {
       if (canvasContainerRef.current) {
-        const w = canvasContainerRef.current.clientWidth;
-        if (w > 0) setCanvasWidth(w);
+        const w = canvasContainerRef.current.clientWidth - 32;
+        const h = canvasContainerRef.current.clientHeight - 32;
+        if (w > 0) setContainerWidth(w);
+        if (h > 0) setContainerHeight(h);
       }
     };
     measure();
@@ -74,11 +161,13 @@ export function ImageMaker() {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  // Rebuild grid when dimensions change
+  // Rebuild grid when dimensions change — resample to preserve artwork
   useEffect(() => {
     const newCols = Math.floor(canvasWidth / pixelSize);
     const newRows = Math.floor(canvasHeight / pixelSize);
-    setGrid((prev) => buildGrid(newRows, newCols, shapeMode, prev));
+    const oldPS = prevPixelSize.current;
+    prevPixelSize.current = pixelSize;
+    setGrid((prev) => resampleGrid(newRows, newCols, prev, oldPS, pixelSize, shapeMode));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pixelSize, canvasHeight, canvasWidth]);
 
@@ -110,8 +199,6 @@ export function ImageMaker() {
           pixelSize={pixelSize}
           setPixelSize={setPixelSize}
           pixelSizes={PIXEL_SIZES}
-          canvasHeight={canvasHeight}
-          setCanvasHeight={setCanvasHeight}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           drawingColor={drawingColor}
@@ -143,7 +230,7 @@ export function ImageMaker() {
         />
         <div
           ref={canvasContainerRef}
-          style={{ flex: 1, overflow: "auto", padding: 16 }}
+          style={{ flex: 1, overflow: "auto", padding: 16, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <PixelCanvas
             grid={grid}

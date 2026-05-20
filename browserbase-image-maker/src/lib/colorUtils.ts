@@ -29,7 +29,10 @@ export function toGreyscale(hex: string): string {
 }
 
 export function colorDistance(a: RGB, b: RGB): number {
-  return Math.sqrt((a.r - b.r) ** 2 + (a.g - b.g) ** 2 + (a.b - b.b) ** 2);
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
 }
 
 export function nearestColor(target: RGB, palette: RGB[]): RGB {
